@@ -1,17 +1,11 @@
 #!/bin/sh
 
-# Run migrations
+# Run migrations and start server
 echo "Running database migrations..."
 npx medusa db:migrate
 
-# Seed database (optional)
 echo "Seeding database..."
 npm run seed || echo "Seeding failed, continuing..."
 
-# Build admin (production)
-echo "Building Medusa Admin..."
-npx medusa build
-
-# Start server in production mode
-echo "Starting Medusa server..."
-npm run start
+echo "Starting Medusa development server..."
+npm run dev
