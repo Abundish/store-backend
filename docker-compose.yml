@@ -37,16 +37,12 @@ services:
       - redis
     ports:
       - "9000:9000"
-      - "5173:5173"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/medusa-store
       - REDIS_URL=redis://redis:6379
     env_file:
       - .env
-    volumes:
-      - .:/server
-      - /server/node_modules
     networks:
       - medusa_network
 

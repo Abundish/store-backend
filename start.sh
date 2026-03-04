@@ -1,11 +1,16 @@
 #!/bin/sh
 
-# Run migrations and start server
+set -e
+
 echo "Running database migrations..."
-npx medusa db:migrate
+NODE_ENV=${NODE_ENV:-production} npx medusa db:migrate
 
-echo "Seeding database..."
-npm run seed || echo "Seeding failed, continuing..."
+# Optional: only for initial data / demos; usually you DON'T want this on every restart
+# echo "Seeding database..."
+# NODE_ENV=${NODE_ENV:-production} npm run seed || echo "Seeding failed, continuing..."
 
-echo "Starting Medusa development server..."
-npm run dev
+echo "Building Medusa (admin + backend)..."
+NODE_ENV=${NODE_ENV:-production} npm run build
+
+echo "Starting Medusa in production mode..."
+NODE_ENV=${NODE_ENV:-production} npm run start
