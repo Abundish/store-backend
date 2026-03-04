@@ -28,6 +28,7 @@ module.exports = defineConfig({
             "localhost",
             ".localhost",
             "127.0.0.1",
+            "api.abundish.info"
           ],
           hmr: {
             // HMR websocket port inside container
