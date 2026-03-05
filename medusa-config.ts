@@ -1,4 +1,4 @@
-import { loadEnv, defineConfig } from '@medusajs/framework/utils'
+import { loadEnv, defineConfig, Modules } from '@medusajs/framework/utils'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
@@ -15,7 +15,26 @@ module.exports = defineConfig({
       authCors: process.env.AUTH_CORS!,
       jwtSecret: process.env.JWT_SECRET || "supersecret",
       cookieSecret: process.env.COOKIE_SECRET || "supersecret",
-    }
+    },
+  },
+  modules: {
+    [Modules.FILE]: {
+      resolve: "@medusajs/file",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/file-local-next",
+            id: "local",
+            options: {
+              upload_dir: "static",
+              backend_url: process.env.MEDUSA_BACKEND_URL
+                ? `${process.env.MEDUSA_BACKEND_URL}/static`
+                : undefined,
+            },
+          },
+        ],
+      },
+    },
   },
   admin: {
     backendUrl: process.env.MEDUSA_BACKEND_URL,
@@ -29,7 +48,7 @@ module.exports = defineConfig({
             "localhost",
             ".localhost",
             "127.0.0.1",
-            "api.abundish.info"
+            "api.abundish.info",
           ],
           hmr: {
             // HMR websocket port inside container
