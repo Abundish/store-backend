@@ -4,4 +4,4 @@
 # yarn medusa db:migrate
 
 echo "Starting Medusa production server..."
-cd .medusa/server && npm install && npm run start
+cd .medusa/server && npm run start
