@@ -1,6 +1,4 @@
-import { loadEnv, defineConfig } from '@medusajs/framework/utils'
-
-//loadEnv(process.env.NODE_ENV || 'development', process.cwd())
+import { defineConfig } from '@medusajs/framework/utils'
 
 module.exports = defineConfig({
   projectConfig: {
@@ -31,7 +29,52 @@ module.exports = defineConfig({
           },
         ],
       },
-    }
+    },
+    {
+      resolve: "medusa-plugin-meilisearch",
+      options: {
+        config: {
+          host: process.env.MEILISEARCH_HOST,        // http://meilisearch:7700
+          apiKey: process.env.MEILISEARCH_MASTER_KEY,
+        },
+        settings: {
+          products: {
+            indexSettings: {
+              searchableAttributes: [
+                "title",
+                "description",
+                "handle",
+                "collection_title",
+                "tags",
+              ],
+              displayedAttributes: [
+                "id",
+                "title",
+                "handle",
+                "description",
+                "thumbnail",
+                "collection_title",
+                "tags",
+                "variants",
+              ],
+              filterableAttributes: ["collection_title", "tags"],
+            },
+            primaryKey: "id",
+            // Transform the product before indexing
+            transformer: (product: any) => ({
+              id: product.id,
+              title: product.title,
+              handle: product.handle,
+              description: product.description,
+              thumbnail: product.thumbnail,
+              collection_title: product.collection?.title ?? null,
+              tags: product.tags?.map((t: any) => t.value) ?? [],
+              variants: product.variants ?? [],
+            }),
+          },
+        },
+      },
+    },
   ],
   admin: {
     backendUrl: process.env.MEDUSA_BACKEND_URL,
