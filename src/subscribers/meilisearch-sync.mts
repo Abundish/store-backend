@@ -1,6 +1,6 @@
 import { IProductModuleService } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
-import { Meilisearch } from "meilisearch"  // capital S, not MeiliSearch
+import { Meilisearch } from "meilisearch"
 
 const client = new Meilisearch({
   host: process.env.MEILISEARCH_HOST!,
