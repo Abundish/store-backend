@@ -1,5 +1,4 @@
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     container_name: medusa_postgres
@@ -15,7 +14,6 @@ services:
     networks:
       - medusa_network
 
-  # Redis
   redis:
     image: redis:7-alpine
     container_name: medusa_redis
@@ -39,9 +37,6 @@ services:
     networks:
       - medusa_network
 
-  # Medusa Server
-  # This service runs the Medusa backend application
-  # and the admin dashboard.
   medusa:
     build: .
     container_name: medusa_backend
@@ -53,12 +48,15 @@ services:
       - "9000:9000"
     env_file:
       - .env
+    volumes:
+      - medusa_uploads:/server/.medusa/server/static  # ← persistent images
     networks:
       - medusa_network
 
 volumes:
   postgres_data:
   meilisearch_data:
+  medusa_uploads:  # ← declare it here
 
 networks:
   medusa_network:

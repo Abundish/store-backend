@@ -28,7 +28,6 @@
     "@medusajs/cli": "2.13.1",
     "@medusajs/framework": "2.13.1",
     "@medusajs/medusa": "2.13.1",
-    "cloudinary": "^2.9.0",
     "medusa-payment-paystack": "^2.1.0",
     "meilisearch": "^0.57.0"
   },

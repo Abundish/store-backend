@@ -1,20 +1,31 @@
 import { IProductModuleService } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
-import { Meilisearch } from "meilisearch"
 
-const client = new Meilisearch({
-  host: process.env.MEILISEARCH_HOST!,
-  apiKey: process.env.MEILISEARCH_MASTER_KEY!,
-})
+let _index: Awaited<ReturnType<typeof getMeilisearchIndex>> | null = null
 
-const index = client.index("products")
+async function getIndex() {
+  if (!_index) _index = await getMeilisearchIndex()
+  return _index
+}
 
-// Configure index settings once on startup
-index.updateSettings({
-  searchableAttributes: ["title", "description", "handle", "collection_title", "tags"],
-  displayedAttributes: ["id", "title", "handle", "description", "thumbnail", "collection_title", "tags"],
-  filterableAttributes: ["collection_title", "tags"],
-}).catch(console.error)
+async function getMeilisearchIndex() {
+  const { Meilisearch } = await import("meilisearch")
+
+  const client = new Meilisearch({
+    host: process.env.MEILISEARCH_HOST!,
+    apiKey: process.env.MEILISEARCH_MASTER_KEY!,
+  })
+
+  const index = client.index("products")
+
+  await index.updateSettings({
+    searchableAttributes: ["title", "description", "handle", "collection_title", "tags"],
+    displayedAttributes: ["id", "title", "handle", "description", "thumbnail", "collection_title", "tags"],
+    filterableAttributes: ["collection_title", "tags"],
+  }).catch(console.error)
+
+  return index
+}
 
 async function upsertProduct(productService: IProductModuleService, productId: string) {
   const [product] = await productService.listProducts(
@@ -22,6 +33,8 @@ async function upsertProduct(productService: IProductModuleService, productId: s
     { relations: ["collection", "tags", "images"] }
   )
   if (!product) return
+
+  const index = await getIndex()
 
   await index.addDocuments([{
     id: product.id,
@@ -53,6 +66,7 @@ export default async function meilisearchSync({
   }
 
   if (event.name === "product.deleted") {
+    const index = await getIndex()
     await index.deleteDocument(productId)
   }
 }

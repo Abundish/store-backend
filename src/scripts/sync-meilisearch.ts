@@ -3,7 +3,7 @@ import { Modules } from "@medusajs/framework/utils"
 import { IProductModuleService } from "@medusajs/framework/types"
 
 export default async function syncAllProducts({ container }: ExecArgs) {
-  const { Meilisearch } = await import("meilisearch")  // dynamic import fixes the ESM issue
+  const { Meilisearch } = await import("meilisearch")
 
   const client = new Meilisearch({
     host: process.env.MEILISEARCH_HOST!,
