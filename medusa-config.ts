@@ -27,6 +27,17 @@ module.exports = defineConfig({
               secret_key: process.env.PAYSTACK_SECRET_KEY || "",
             } satisfies import("medusa-payment-paystack").PluginOptions,
           },
+          {
+            resolve: "@medusajs/medusa/fulfillment",
+            options: {
+              providers: [
+                {
+                  resolve: "./src/modules/abundish-fulfillment",
+                  id: "abundish-fulfillment",
+                },
+              ],
+            },
+          },
         ],
       },
     },
