@@ -34,8 +34,8 @@ module.exports = defineConfig({
       options: {
         providers: [
           {
-            resolve: "./src/modules/abundish-fulfillment",
-            id: "abundish-fulfillment",
+            resolve: "@medusajs/fulfillment-manual",
+            id: "manual",
           },
         ],
       },
