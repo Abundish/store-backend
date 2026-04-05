@@ -13,7 +13,7 @@
     "medusa"
   ],
   "scripts": {
-    "build": "medusa build && cp src/modules/abundish-fulfillment/distance-pricing.json .medusa/server/src/modules/abundish-fulfillment/distance-pricing.json",
+    "build": "medusa build",
     "seed": "medusa exec ./src/scripts/seed.ts",
     "start": "medusa start",
     "dev": "medusa develop",

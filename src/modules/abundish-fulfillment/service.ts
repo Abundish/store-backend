@@ -1,18 +1,13 @@
-import { AbstractFulfillmentProviderService } from "@medusajs/utils"
-import { MedusaError } from "@medusajs/framework/utils"
+import { AbstractFulfillmentProviderService } from "@medusajs/framework/utils"
 import {
+    CalculateShippingOptionPriceDTO,
+    FulfillmentOption,
+    CreateFulfillmentResult,
     CreateShippingOptionDTO,
-    CartPropsForFulfillment,
-    CalculatedShippingOptionPrice,
-    FulfillmentItemDTO,
-    FulfillmentOrderDTO,
-    FulfillmentDTO,
 } from "@medusajs/framework/types"
 import { Client } from "@googlemaps/google-maps-services-js"
 import * as fs from "fs"
 import * as path from "path"
-
-// ── Types ──────────────────────────────────────────────────────────────────
 
 type PricingTier = {
     minDistance: number
@@ -30,149 +25,188 @@ type DistancePricingConfig = {
     cacheExpiryHours: number
 }
 
-type CacheEntry = {
-    distance: number
-    timestamp: number
-}
-
-// ── Service ────────────────────────────────────────────────────────────────
+type CacheEntry = { distance: number; timestamp: number }
 
 class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderService {
     static identifier = "abundish-fulfillment"
 
     private googleMapsClient: Client
     private config: DistancePricingConfig
-    private distanceCache: Map<string, CacheEntry>
+    private cache: Map<string, CacheEntry>
 
     constructor() {
         super()
 
         this.googleMapsClient = new Client({})
-        this.distanceCache = new Map()
+        this.cache = new Map()
 
         const configPath = path.join(__dirname, "distance-pricing.json")
-        this.config = JSON.parse(fs.readFileSync(configPath, "utf8"))
+        const raw = fs.readFileSync(configPath, "utf8")
+        this.config = JSON.parse(raw)
     }
 
-    // ── Fulfillment options shown in admin ──────────────────────────────────
+    // ─── Required by AbstractFulfillmentProviderService ───────────────────────
 
-    async getFulfillmentOptions() {
+    async getFulfillmentOptions(): Promise<FulfillmentOption[]> {
         return [
-            { id: "standard-delivery", name: "Standard Delivery" },
+            {
+                id: "abundish-standard-delivery",
+                name: "Standard Delivery",
+            },
         ]
     }
 
-    // ── Price calculation ───────────────────────────────────────────────────
+    async validateOption(data: Record<string, unknown>): Promise<boolean> {
+        return true
+    }
 
+    async validateFulfillmentData(
+        optionData: Record<string, unknown>,
+        data: Record<string, unknown>,
+        context: Record<string, unknown>
+    ): Promise<Record<string, unknown>> {
+        return data
+    }
     async canCalculate(data: CreateShippingOptionDTO): Promise<boolean> {
         return true
     }
+
+    /**
+     * Called during checkout to calculate the shipping price.
+     * context.shipping_address contains the customer's address.
+     */
     async calculatePrice(
-        optionData: Record<string, unknown>,
-        data: Record<string, unknown>,
-        context: CartPropsForFulfillment & Record<string, unknown>
-    ): Promise<CalculatedShippingOptionPrice> {
-        const address = this.buildAddress(context)
+        optionData: CalculateShippingOptionPriceDTO["optionData"],
+        data: CalculateShippingOptionPriceDTO["data"],
+        context: CalculateShippingOptionPriceDTO["context"]
+    ): Promise<{ calculated_amount: number; is_calculated_price_tax_inclusive: boolean }> {
+        const address = context?.shipping_address
 
         if (!address) {
-            throw new MedusaError(
-                MedusaError.Types.INVALID_DATA,
-                "No shipping address provided to calculate delivery price"
-            )
+            // fallback to minimum tier base price if no address yet
+            const fallback = this.config.pricingTiers[0]?.basePrice ?? 1800
+            return {
+                calculated_amount: fallback * 100, // kobo
+                is_calculated_price_tax_inclusive: false,
+            }
         }
 
-        const distanceKm = await this.getDistance(address)
-        const priceNaira = this.getPriceFromDistance(distanceKm)
+        const parts: string[] = []
+        if (address.address_1) parts.push(address.address_1 as string)
+        if (address.city) parts.push(address.city as string)
+        if (address.province) parts.push(address.province as string)
+        if (address.country_code) parts.push(address.country_code as string)
+
+        const fullAddress = parts.join(", ")
+
+        const distanceKm = await this.getDistance(fullAddress)
+        const priceNaira = this.priceFromDistance(distanceKm)
 
         return {
-            calculated_amount: priceNaira * 100, // kobo
+            calculated_amount: priceNaira * 100, // convert to kobo
             is_calculated_price_tax_inclusive: false,
         }
     }
 
-
-    // ── Distance resolution ─────────────────────────────────────────────────
-
-    private buildAddress(context: Record<string, unknown>): string | null {
-        // Medusa passes the cart's shipping address in context
-        const addr = (context as any)?.shipping_address
-
-        if (!addr) return null
-
-        const parts: string[] = []
-        if (addr.address_1) parts.push(addr.address_1)
-        if (addr.address_2) parts.push(addr.address_2)
-        if (addr.city) parts.push(addr.city)
-        if (addr.province) parts.push(addr.province)
-        if (addr.country_code) parts.push(addr.country_code)
-
-        return parts.length > 0 ? parts.join(", ") : null
+    async createFulfillment(
+        data: Record<string, unknown>,
+        items: any[],
+        order: any,
+        fulfillment: any
+    ): Promise<CreateFulfillmentResult> {
+        return { data: {}, labels: [] }
     }
 
-    private async getDistance(destinationAddress: string): Promise<number> {
-        const apiKey = process.env.GOOGLE_MAPS_API_KEY
-        if (!apiKey) {
-            throw new MedusaError(
-                MedusaError.Types.UNEXPECTED_STATE,
-                "GOOGLE_MAPS_API_KEY is not set"
-            )
-        }
+    async cancelFulfillment(data: Record<string, unknown>): Promise<void> { }
 
-        // Check cache
+    async createReturnFulfillment(
+        fulfillment: Record<string, unknown>
+    ): Promise<CreateFulfillmentResult> {
+        return { data: {}, labels: [] }
+    }
+
+    async getFulfillmentDocuments(data: Record<string, unknown>): Promise<never[]> {
+        return []
+    }
+
+    async getReturnDocuments(data: Record<string, unknown>): Promise<never[]> {
+        return []
+    }
+
+    async getShipmentDocuments(data: Record<string, unknown>): Promise<never[]> {
+        return []
+    }
+
+    async retrieveDocuments(
+        fulfillmentData: Record<string, unknown>,
+        documentType: string
+    ): Promise<void> { }
+
+    // ─── Distance + Pricing Helpers ───────────────────────────────────────────
+
+    private async getDistance(destinationAddress: string, retryCount = 0): Promise<number> {
+        const maxRetries = 3
         const cacheKey = destinationAddress.toLowerCase().trim()
-        if (this.config.cacheDistanceResults && this.distanceCache.has(cacheKey)) {
-            const cached = this.distanceCache.get(cacheKey)!
+
+        if (this.config.cacheDistanceResults && this.cache.has(cacheKey)) {
+            const cached = this.cache.get(cacheKey)!
             const expiryMs = this.config.cacheExpiryHours * 60 * 60 * 1000
             if (Date.now() - cached.timestamp < expiryMs) {
-                //console.log(`[AbundishFulfillment] Cache hit: ${distanceKm}km`)
                 return cached.distance
             }
         }
 
+        const apiKey = process.env.GOOGLE_MAPS_API_KEY
+        if (!apiKey) throw new Error("GOOGLE_MAPS_API_KEY is not set")
+
         const { lat, lng } = this.config.centralLocation
+        const origin = `${lat},${lng}`
 
-        const response = await this.googleMapsClient.distancematrix({
-            params: {
-                origins: [`${lat},${lng}`],
-                destinations: [destinationAddress],
-                key: apiKey,
-                region: "ng",
-            },
-        })
+        try {
+            const response = await this.googleMapsClient.distancematrix({
+                params: {
+                    origins: [origin],
+                    destinations: [destinationAddress],
+                    key: apiKey,
+                    region: "ng",
+                },
+            })
 
-        if (response.data.status !== "OK") {
-            throw new MedusaError(
-                MedusaError.Types.UNEXPECTED_STATE,
-                `Google Distance Matrix error: ${response.data.status}`
-            )
+            if (response.data.status !== "OK") {
+                throw new Error(`Distance Matrix API error: ${response.data.status}`)
+            }
+
+            const element = response.data.rows[0]?.elements[0]
+            if (!element || element.status !== "OK") {
+                throw new Error(`Element error: ${element?.status ?? "no data"}`)
+            }
+
+            const distanceKm = element.distance.value / 1000
+
+            if (this.config.cacheDistanceResults) {
+                this.cache.set(cacheKey, { distance: distanceKm, timestamp: Date.now() })
+            }
+
+            return distanceKm
+        } catch (err: any) {
+            if (retryCount < maxRetries) {
+                const delay = 1000 * Math.pow(2, retryCount)
+                await new Promise((r) => setTimeout(r, delay))
+                return this.getDistance(destinationAddress, retryCount + 1)
+            }
+            throw err
         }
-
-        const element = response.data.rows[0]?.elements[0]
-        if (!element || element.status !== "OK") {
-            throw new MedusaError(
-                MedusaError.Types.UNEXPECTED_STATE,
-                `Could not resolve distance for address: ${destinationAddress}`
-            )
-        }
-
-        const distanceKm = element.distance.value / 1000
-        console.log(`[AbundishFulfillment] ${distanceKm.toFixed(1)}km to "${destinationAddress}"`)
-
-        // Store in cache
-        if (this.config.cacheDistanceResults) {
-            this.distanceCache.set(cacheKey, { distance: distanceKm, timestamp: Date.now() })
-        }
-
-        return distanceKm
     }
 
-    // ── Tier pricing (straight from your original service) ──────────────────
+    private priceFromDistance(distanceKm: number): number {
+        const tiers = this.config.pricingTiers
 
-    private getPriceFromDistance(distanceKm: number): number {
-        const tier = this.config.pricingTiers.find(t => {
-            if (t.maxDistance === null) return distanceKm >= t.minDistance
-            return distanceKm >= t.minDistance && distanceKm < t.maxDistance
-        }) ?? this.config.pricingTiers[this.config.pricingTiers.length - 1]
+        const tier =
+            tiers.find((t) => {
+                const inMin = distanceKm >= t.minDistance
+                const inMax = t.maxDistance === null || distanceKm < t.maxDistance
+                return inMin && inMax
+            }) ?? tiers[tiers.length - 1]
 
         const base = tier.basePrice ?? 0
         const perKm = tier.pricePerKm ?? 0
@@ -183,43 +217,6 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
         }
 
         return Math.round(price)
-    }
-
-    // ── Required lifecycle stubs ─────────────────────────────────────────────
-
-    async validateOption(data: Record<string, unknown>) {
-        return true
-    }
-
-    async validateFulfillmentData(
-        optionData: Record<string, unknown>,
-        data: Record<string, unknown>,
-        context: Record<string, unknown>
-    ) {
-        return data
-    }
-
-    async createFulfillment(
-        data: Record<string, unknown>,
-        items: Partial<Omit<FulfillmentItemDTO, "fulfillment">>[],
-        order: Partial<FulfillmentOrderDTO> | undefined,
-        fulfillment: Partial<FulfillmentDTO>
-    ) {
-        return {
-            data: {},
-            labels: [], // required by CreateFulfillmentResult
-        }
-    }
-
-    async cancelFulfillment(fulfillment: Record<string, unknown>) {
-        return {}
-    }
-
-    async createReturnFulfillment(fulfillment: Partial<FulfillmentDTO>) {
-        return {
-            data: {},
-            labels: [],
-        }
     }
 }
 

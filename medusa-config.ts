@@ -37,6 +37,10 @@ module.exports = defineConfig({
             resolve: "@medusajs/fulfillment-manual",
             id: "manual",
           },
+          {
+            resolve: "./src/modules/abundish-fulfillment",
+            id: "abundish-fulfillment",
+          },
         ],
       },
     },
