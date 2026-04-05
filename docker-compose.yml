@@ -49,14 +49,14 @@ services:
     env_file:
       - .env
     volumes:
-      - medusa_uploads:/server/.medusa/server/static  # ← persistent images
+      - medusa_uploads:/server/.medusa/server/static
     networks:
       - medusa_network
 
 volumes:
   postgres_data:
   meilisearch_data:
-  medusa_uploads:  # ← declare it here
+  medusa_uploads:
 
 networks:
   medusa_network:

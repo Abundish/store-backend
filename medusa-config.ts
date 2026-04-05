@@ -20,23 +20,22 @@ module.exports = defineConfig({
       resolve: "@medusajs/medusa/payment",
       options: {
         providers: [
-          // other payment providers like stripe, paypal etc
           {
             resolve: "medusa-payment-paystack",
             options: {
               secret_key: process.env.PAYSTACK_SECRET_KEY || "",
             } satisfies import("medusa-payment-paystack").PluginOptions,
           },
+        ],
+      },
+    },
+    {
+      resolve: "@medusajs/medusa/fulfillment",
+      options: {
+        providers: [
           {
-            resolve: "@medusajs/medusa/fulfillment",
-            options: {
-              providers: [
-                {
-                  resolve: "./src/modules/abundish-fulfillment",
-                  id: "abundish-fulfillment",
-                },
-              ],
-            },
+            resolve: "./src/modules/abundish-fulfillment",
+            id: "abundish-fulfillment",
           },
         ],
       },
@@ -48,8 +47,6 @@ module.exports = defineConfig({
       return {
         server: {
           host: "0.0.0.0",
-          // Allow all hosts when running in Docker (development mode)
-          // In production, this should be more restrictive
           allowedHosts: [
             "localhost",
             ".localhost",
@@ -57,9 +54,7 @@ module.exports = defineConfig({
             "api.abundish.info"
           ],
           hmr: {
-            // HMR websocket port inside container
             port: 5173,
-            // Port browser connects to (exposed in docker-compose.yml)
             clientPort: 5173,
           },
         },
