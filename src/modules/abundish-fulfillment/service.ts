@@ -6,8 +6,6 @@ import {
     CreateShippingOptionDTO,
 } from "@medusajs/framework/types"
 import { Client } from "@googlemaps/google-maps-services-js"
-import * as fs from "fs"
-import * as path from "path"
 
 type PricingTier = {
     minDistance: number
@@ -27,6 +25,25 @@ type DistancePricingConfig = {
 
 type CacheEntry = { distance: number; timestamp: number }
 
+const PRICING_CONFIG: DistancePricingConfig = {
+    centralLocation: {
+        address: "15 Wole Olateju Cres, Lekki Phase I, Street 106104, Lagos",
+        lat: 6.446166224813956,
+        lng: 3.4541383686722362,
+    },
+    pricingTiers: [
+        { minDistance: 0, maxDistance: 6, pricePerKm: 0, basePrice: 1800, maxPrice: 1800, description: "Local delivery within immediate area" },
+        { minDistance: 6.1, maxDistance: 8, pricePerKm: 0, basePrice: 2000, maxPrice: 2000, description: "Short distance delivery" },
+        { minDistance: 8.1, maxDistance: 9, pricePerKm: 0, basePrice: 2200, maxPrice: 2200, description: "Medium distance delivery" },
+        { minDistance: 9, maxDistance: 10, pricePerKm: 0, basePrice: 2400, maxPrice: 2400, description: "Long distance delivery" },
+        { minDistance: 10.1, maxDistance: 13, pricePerKm: 0, basePrice: 2700, maxPrice: 2700, description: "Extended range delivery" },
+        { minDistance: 13.1, maxDistance: 15, pricePerKm: 0, basePrice: 7000, maxPrice: 7000, description: "Long haul delivery" },
+        { minDistance: 15.1, maxDistance: 40, pricePerKm: 0, basePrice: 10000, maxPrice: 10000, description: "Super Long haul delivery" },
+    ],
+    cacheDistanceResults: true,
+    cacheExpiryHours: 24,
+}
+
 class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderService {
     static identifier = "abundish-fulfillment"
 
@@ -36,28 +53,17 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
 
     constructor() {
         super()
-
         this.googleMapsClient = new Client({})
         this.cache = new Map()
-
-        const configPath = path.join(__dirname, "distance-pricing.json")
-        const raw = fs.readFileSync(configPath, "utf8")
-        this.config = JSON.parse(raw)
+        this.config = PRICING_CONFIG
     }
 
-    // ─── Required by AbstractFulfillmentProviderService ───────────────────────
-
     async getFulfillmentOptions(): Promise<FulfillmentOption[]> {
-        return [
-            {
-                id: "standard-delivery",
-                name: "Standard Delivery",
-            },
-        ]
+        return [{ id: "standard-delivery", name: "Standard Delivery" }]
     }
 
     async validateOption(data: Record<string, unknown>): Promise<boolean> {
-        return true
+        return data.id === "standard-delivery"
     }
 
     async validateFulfillmentData(
@@ -67,14 +73,11 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
     ): Promise<Record<string, unknown>> {
         return data
     }
+
     async canCalculate(data: CreateShippingOptionDTO): Promise<boolean> {
         return true
     }
 
-    /**
-     * Called during checkout to calculate the shipping price.
-     * context.shipping_address contains the customer's address.
-     */
     async calculatePrice(
         optionData: CalculateShippingOptionPriceDTO["optionData"],
         data: CalculateShippingOptionPriceDTO["data"],
@@ -83,12 +86,8 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
         const address = context?.shipping_address
 
         if (!address) {
-            // fallback to minimum tier base price if no address yet
             const fallback = this.config.pricingTiers[0]?.basePrice ?? 1800
-            return {
-                calculated_amount: fallback * 100, // kobo
-                is_calculated_price_tax_inclusive: false,
-            }
+            return { calculated_amount: fallback * 100, is_calculated_price_tax_inclusive: false }
         }
 
         const parts: string[] = []
@@ -98,12 +97,11 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
         if (address.country_code) parts.push(address.country_code as string)
 
         const fullAddress = parts.join(", ")
-
         const distanceKm = await this.getDistance(fullAddress)
         const priceNaira = this.priceFromDistance(distanceKm)
 
         return {
-            calculated_amount: priceNaira * 100, // convert to kobo
+            calculated_amount: priceNaira * 100,
             is_calculated_price_tax_inclusive: false,
         }
     }
@@ -119,30 +117,16 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
 
     async cancelFulfillment(data: Record<string, unknown>): Promise<void> { }
 
-    async createReturnFulfillment(
-        fulfillment: Record<string, unknown>
-    ): Promise<CreateFulfillmentResult> {
+    async createReturnFulfillment(fulfillment: Record<string, unknown>): Promise<CreateFulfillmentResult> {
         return { data: {}, labels: [] }
     }
 
-    async getFulfillmentDocuments(data: Record<string, unknown>): Promise<never[]> {
-        return []
-    }
+    async getFulfillmentDocuments(data: Record<string, unknown>): Promise<never[]> { return [] }
+    async getReturnDocuments(data: Record<string, unknown>): Promise<never[]> { return [] }
+    async getShipmentDocuments(data: Record<string, unknown>): Promise<never[]> { return [] }
+    async retrieveDocuments(fulfillmentData: Record<string, unknown>, documentType: string): Promise<void> { }
 
-    async getReturnDocuments(data: Record<string, unknown>): Promise<never[]> {
-        return []
-    }
-
-    async getShipmentDocuments(data: Record<string, unknown>): Promise<never[]> {
-        return []
-    }
-
-    async retrieveDocuments(
-        fulfillmentData: Record<string, unknown>,
-        documentType: string
-    ): Promise<void> { }
-
-    // ─── Distance + Pricing Helpers ───────────────────────────────────────────
+    // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private async getDistance(destinationAddress: string, retryCount = 0): Promise<number> {
         const maxRetries = 3
