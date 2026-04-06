@@ -50,7 +50,7 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
     async getFulfillmentOptions(): Promise<FulfillmentOption[]> {
         return [
             {
-                id: "abundish-standard-delivery",
+                id: "standard-delivery",
                 name: "Standard Delivery",
             },
         ]
