@@ -29,8 +29,10 @@
     "@medusajs/cli": "2.13.1",
     "@medusajs/framework": "2.13.1",
     "@medusajs/medusa": "2.13.1",
+    "@react-email/components": "^1.0.12",
     "medusa-payment-paystack": "^2.1.0",
-    "meilisearch": "^0.57.0"
+    "meilisearch": "^0.57.0",
+    "resend": "^6.12.2"
   },
   "devDependencies": {
     "@medusajs/test-utils": "2.13.1",
