@@ -68,7 +68,7 @@ export default function AdminNewOrderEmail({
                                     {item.title} × {item.quantity}
                                 </Column>
                                 <Column style={{ fontSize: "14px", color: "#1a1a1a", textAlign: "right" }}>
-                                    ₦{((item.unit_price * item.quantity) / 100).toLocaleString()}
+                                    ₦{((item.unit_price * item.quantity)).toLocaleString()}
                                 </Column>
                             </Row>
                         ))}
@@ -76,7 +76,7 @@ export default function AdminNewOrderEmail({
                         <Row>
                             <Column style={{ fontWeight: "bold", fontSize: "15px" }}>Total</Column>
                             <Column style={{ fontWeight: "bold", fontSize: "15px", textAlign: "right" }}>
-                                ₦{(total / 100).toLocaleString()}
+                                ₦{(total).toLocaleString()}
                             </Column>
                         </Row>
                     </Section>
