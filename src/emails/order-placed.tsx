@@ -13,6 +13,7 @@ import {
     customerName: string
     orderDisplayId: string
     items: OrderItem[]
+    shippingFee: number
     total: number
     shippingAddress: string
   }
@@ -21,6 +22,7 @@ import {
     customerName,
     orderDisplayId,
     items,
+    shippingFee,
     total,
     shippingAddress,
   }: OrderPlacedEmailProps) {
@@ -62,11 +64,21 @@ import {
                   </Column>
                 </Row>
               ))}
+              {shippingFee > 0 && (
+                <Row style={{ marginBottom: "8px" }}>
+                  <Column style={{ fontSize: "14px", color: "#555555" }}>
+                    Delivery fee
+                  </Column>
+                  <Column style={{ fontSize: "14px", color: "#555555", textAlign: "right" }}>
+                    ₦{shippingFee.toLocaleString()}
+                  </Column>
+                </Row>
+              )}
               <Hr style={{ borderColor: "#D8E8D0" }} />
               <Row>
                 <Column style={{ fontWeight: "bold", fontSize: "15px" }}>Total</Column>
                 <Column style={{ fontWeight: "bold", fontSize: "15px", textAlign: "right" }}>
-                  ₦{(total).toLocaleString()}
+                  ₦{total.toLocaleString()}
                 </Column>
               </Row>
             </Section>

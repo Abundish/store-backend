@@ -14,6 +14,7 @@ type AdminNewOrderEmailProps = {
     customerName: string
     customerEmail: string
     items: OrderItem[]
+    shippingFee: number
     total: number
     shippingAddress: string
 }
@@ -23,6 +24,7 @@ export default function AdminNewOrderEmail({
     customerName,
     customerEmail,
     items,
+    shippingFee,
     total,
     shippingAddress,
 }: AdminNewOrderEmailProps) {
@@ -72,11 +74,21 @@ export default function AdminNewOrderEmail({
                                 </Column>
                             </Row>
                         ))}
+                        {shippingFee > 0 && (
+                            <Row style={{ marginBottom: "8px" }}>
+                                <Column style={{ fontSize: "14px", color: "#555555" }}>
+                                    Delivery fee
+                                </Column>
+                                <Column style={{ fontSize: "14px", color: "#555555", textAlign: "right" }}>
+                                    ₦{shippingFee.toLocaleString()}
+                                </Column>
+                            </Row>
+                        )}
                         <Hr style={{ borderColor: "#D8E8D0" }} />
                         <Row>
                             <Column style={{ fontWeight: "bold", fontSize: "15px" }}>Total</Column>
                             <Column style={{ fontWeight: "bold", fontSize: "15px", textAlign: "right" }}>
-                                ₦{(total).toLocaleString()}
+                                ₦{total.toLocaleString()}
                             </Column>
                         </Row>
                     </Section>

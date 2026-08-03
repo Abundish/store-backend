@@ -6,10 +6,16 @@ import { resend } from "../lib/resend"
 import OrderPlacedEmail from "../emails/order-placed"
 import AdminNewOrderEmail from "../emails/admin-new-order"
 
+// query.graph serializes BigNumber as plain objects { numeric, value } rather
+// than class instances, so we handle both forms here.
 function toAmount(value: unknown): number {
     if (value == null) return 0
-    if (value instanceof BigNumber) return value.numeric
     if (typeof value === "number") return value
+    if (value instanceof BigNumber) return value.numeric
+    if (typeof value === "object" && value !== null) {
+        const obj = value as Record<string, unknown>
+        if (typeof obj.numeric === "number") return obj.numeric
+    }
     const parsed = parseFloat(String(value))
     return Number.isNaN(parsed) ? 0 : parsed
 }
@@ -25,11 +31,12 @@ export default async function orderPlacedHandler({
         fields: [
             "display_id",
             "email",
-            "total",
             "items.title",
             "items.quantity",
-            "items.total",
+            "items.unit_price",
             "shipping_address.*",
+            "shipping_methods.name",
+            "shipping_methods.amount",
         ],
         filters: {
             id: data.id,
@@ -54,15 +61,20 @@ export default async function orderPlacedHandler({
     ]
         .filter(Boolean)
         .join(", ")
+
     const itemsPayload = (order.items ?? [])
         .filter((item): item is NonNullable<typeof item> => item != null)
         .map((item) => ({
             title: item.title,
-            quantity: item.quantity,
-            line_total: toAmount(item.total),
+            quantity: item.quantity ?? 1,
+            line_total: toAmount(item.unit_price) * (item.quantity ?? 1),
         }))
 
-    const orderTotal = toAmount(order.total)
+    const shippingFee = (order.shipping_methods ?? [])
+        .reduce((sum: number, sm: Record<string, unknown>) => sum + toAmount(sm.amount), 0)
+
+    const subtotal = itemsPayload.reduce((sum, item) => sum + item.line_total, 0)
+    const orderTotal = subtotal + shippingFee
 
     // --- Customer email ---
     const customerHtml = await render(
@@ -71,6 +83,7 @@ export default async function orderPlacedHandler({
             orderDisplayId: String(order.display_id),
             items: itemsPayload,
             total: orderTotal,
+            shippingFee,
             shippingAddress,
         })
     )
@@ -92,6 +105,7 @@ export default async function orderPlacedHandler({
             customerEmail: order.email ?? "—",
             items: itemsPayload,
             total: orderTotal,
+            shippingFee,
             shippingAddress,
         })
     )
