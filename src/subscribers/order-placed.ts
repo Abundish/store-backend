@@ -64,14 +64,28 @@ export default async function orderPlacedHandler({
 
     const itemsPayload = (order.items ?? [])
         .filter((item): item is NonNullable<typeof item> => item != null)
-        .map((item) => ({
-            title: item.title,
-            quantity: item.quantity ?? 1,
-            line_total: toAmount(item.unit_price) * (item.quantity ?? 1),
-        }))
+        .map((item) => {
+            // quantity is an integer column but may still be wrapped in a BigNumber
+            // object by some query.graph serialisers — run it through toAmount +
+            // round to always get a plain whole number.
+            const qty = Math.round(toAmount(item.quantity as unknown)) || 1
+            return {
+                title: item.title,
+                quantity: qty,
+                line_total: toAmount(item.unit_price) * qty,
+            }
+        })
 
-    const shippingFee = (order.shipping_methods ?? [])
-        .reduce((sum: number, sm) => sum + (sm ? toAmount(sm.amount) : 0), 0)
+    const shippingMethods = (order.shipping_methods ?? []).filter(Boolean)
+
+    const shippingFee = shippingMethods
+        .reduce((sum: number, sm) => sum + toAmount(sm!.amount), 0)
+
+    // Treat the order as a pickup if any shipping method name contains "pickup"
+    // or "pick up" (case-insensitive).
+    const isPickup = shippingMethods.some(sm =>
+        /pick.?up|collect/i.test((sm as { name?: string }).name ?? "")
+    )
 
     const subtotal = itemsPayload.reduce((sum, item) => sum + item.line_total, 0)
     const orderTotal = subtotal + shippingFee
@@ -85,6 +99,7 @@ export default async function orderPlacedHandler({
             total: orderTotal,
             shippingFee,
             shippingAddress,
+            isPickup,
         })
     )
 
@@ -107,6 +122,7 @@ export default async function orderPlacedHandler({
             total: orderTotal,
             shippingFee,
             shippingAddress,
+            isPickup,
         })
     )
 

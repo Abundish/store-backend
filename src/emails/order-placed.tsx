@@ -16,6 +16,7 @@ import {
     shippingFee: number
     total: number
     shippingAddress: string
+    isPickup: boolean
   }
   
   export default function OrderPlacedEmail({
@@ -25,6 +26,7 @@ import {
     shippingFee,
     total,
     shippingAddress,
+    isPickup,
   }: OrderPlacedEmailProps) {
     return (
       <Html>
@@ -44,7 +46,7 @@ import {
               Hi {customerName},
             </Text>
             <Text style={{ fontSize: "16px", color: "#1a1a1a" }}>
-              Thanks for your order! We've received it and will get it ready for delivery.
+              Thanks for your order! We&apos;ve received it and will get it ready for {isPickup ? "pickup" : "delivery"}.
             </Text>
   
             {/* Order ID */}
@@ -67,7 +69,7 @@ import {
               {shippingFee > 0 && (
                 <Row style={{ marginBottom: "8px" }}>
                   <Column style={{ fontSize: "14px", color: "#555555" }}>
-                    Delivery fee
+                    {isPickup ? "Pickup fee" : "Delivery fee"}
                   </Column>
                   <Column style={{ fontSize: "14px", color: "#555555", textAlign: "right" }}>
                     ₦{shippingFee.toLocaleString()}
@@ -83,14 +85,20 @@ import {
               </Row>
             </Section>
   
-            {/* Shipping address */}
+            {/* Address / pickup note */}
             <Section style={{ marginTop: "24px" }}>
               <Text style={{ fontSize: "13px", color: "#006b2f", fontFamily: "monospace", textTransform: "uppercase" }}>
-                Delivering to
+                {isPickup ? "Pickup" : "Delivering to"}
               </Text>
-              <Text style={{ fontSize: "14px", color: "#1a1a1a", marginTop: "4px" }}>
-                {shippingAddress}
-              </Text>
+              {isPickup ? (
+                <Text style={{ fontSize: "14px", color: "#1a1a1a", marginTop: "4px" }}>
+                  You have chosen to pick up your order. We&apos;ll be in touch with the pickup details.
+                </Text>
+              ) : (
+                <Text style={{ fontSize: "14px", color: "#1a1a1a", marginTop: "4px" }}>
+                  {shippingAddress}
+                </Text>
+              )}
             </Section>
   
             {/* Footer */}

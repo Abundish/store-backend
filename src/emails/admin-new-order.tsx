@@ -17,6 +17,7 @@ type AdminNewOrderEmailProps = {
     shippingFee: number
     total: number
     shippingAddress: string
+    isPickup: boolean
 }
 
 export default function AdminNewOrderEmail({
@@ -27,6 +28,7 @@ export default function AdminNewOrderEmail({
     shippingFee,
     total,
     shippingAddress,
+    isPickup,
 }: AdminNewOrderEmailProps) {
     return (
         <Html>
@@ -77,7 +79,7 @@ export default function AdminNewOrderEmail({
                         {shippingFee > 0 && (
                             <Row style={{ marginBottom: "8px" }}>
                                 <Column style={{ fontSize: "14px", color: "#555555" }}>
-                                    Delivery fee
+                                    {isPickup ? "Pickup fee" : "Delivery fee"}
                                 </Column>
                                 <Column style={{ fontSize: "14px", color: "#555555", textAlign: "right" }}>
                                     ₦{shippingFee.toLocaleString()}
@@ -93,14 +95,20 @@ export default function AdminNewOrderEmail({
                         </Row>
                     </Section>
 
-                    {/* Delivery address */}
+                    {/* Delivery address / pickup */}
                     <Section style={{ marginTop: "16px" }}>
                         <Text style={{ fontSize: "13px", color: "#006b2f", fontFamily: "monospace", textTransform: "uppercase" }}>
-                            Deliver to
+                            {isPickup ? "Pickup" : "Deliver to"}
                         </Text>
-                        <Text style={{ fontSize: "14px", color: "#1a1a1a", marginTop: "4px" }}>
-                            {shippingAddress}
-                        </Text>
+                        {isPickup ? (
+                            <Text style={{ fontSize: "14px", color: "#1a1a1a", marginTop: "4px" }}>
+                                Customer will collect — arrange pickup with {customerName}
+                            </Text>
+                        ) : (
+                            <Text style={{ fontSize: "14px", color: "#1a1a1a", marginTop: "4px" }}>
+                                {shippingAddress}
+                            </Text>
+                        )}
                     </Section>
 
                     <Hr style={{ borderColor: "#D8E8D0", marginTop: "32px" }} />
