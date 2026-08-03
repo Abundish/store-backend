@@ -1,19 +1,43 @@
 // src/subscribers/order-placed.ts
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/framework"
+import { BigNumber } from "@medusajs/framework/utils"
 import { render } from "@react-email/components"
 import { resend } from "../lib/resend"
 import OrderPlacedEmail from "../emails/order-placed"
 import AdminNewOrderEmail from "../emails/admin-new-order"
 
+function toAmount(value: unknown): number {
+    if (value == null) return 0
+    if (value instanceof BigNumber) return value.numeric
+    if (typeof value === "number") return value
+    const parsed = parseFloat(String(value))
+    return Number.isNaN(parsed) ? 0 : parsed
+}
+
 export default async function orderPlacedHandler({
     event: { data },
     container,
 }: SubscriberArgs<{ id: string }>) {
-    const orderModuleService = container.resolve("order")
+    const query = container.resolve("query")
 
-    const order = await orderModuleService.retrieveOrder(data.id, {
-        relations: ["items", "shipping_address"],
+    const { data: orders } = await query.graph({
+        entity: "order",
+        fields: [
+            "display_id",
+            "email",
+            "total",
+            "items.title",
+            "items.quantity",
+            "items.total",
+            "shipping_address.*",
+        ],
+        filters: {
+            id: data.id,
+        },
     })
+
+    const order = orders[0]
+    if (!order) return
     const customerName = order.shipping_address?.first_name ?? "there"
 
     const fullCustomerName = [
@@ -33,8 +57,10 @@ export default async function orderPlacedHandler({
     const itemsPayload = (order.items ?? []).map((item) => ({
         title: item.title,
         quantity: item.quantity,
-        unit_price: item.unit_price,
+        line_total: toAmount(item.total),
     }))
+
+    const orderTotal = toAmount(order.total)
 
     // --- Customer email ---
     const customerHtml = await render(
@@ -42,7 +68,7 @@ export default async function orderPlacedHandler({
             customerName,
             orderDisplayId: String(order.display_id),
             items: itemsPayload,
-            total: parseFloat(String(order.total)),
+            total: orderTotal,
             shippingAddress,
         })
     )
@@ -63,7 +89,7 @@ export default async function orderPlacedHandler({
             customerName: fullCustomerName,
             customerEmail: order.email ?? "—",
             items: itemsPayload,
-            total: parseFloat(String(order.total)),
+            total: orderTotal,
             shippingAddress,
         })
     )
@@ -71,7 +97,7 @@ export default async function orderPlacedHandler({
     await resend.emails.send({
         from: "Abundish <orders@abundish.info>",
         to: process.env.ADMIN_NOTIFICATION_EMAIL!,
-        subject: `🛒 New order #${order.display_id} — ₦${(parseFloat(String(order.total))).toLocaleString()}`,
+        subject: `🛒 New order #${order.display_id} — ₦${orderTotal.toLocaleString()}`,
         replyTo: order.email ?? undefined,
         html: adminHtml,
     })

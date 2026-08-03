@@ -6,7 +6,7 @@ import {
   type OrderItem = {
     title: string
     quantity: number
-    unit_price: number
+    line_total: number
   }
   
   type OrderPlacedEmailProps = {
@@ -58,7 +58,7 @@ import {
                     {item.title} × {item.quantity}
                   </Column>
                   <Column style={{ fontSize: "14px", color: "#1a1a1a", textAlign: "right" }}>
-                    ₦{((item.unit_price * item.quantity)).toLocaleString()}
+                    ₦{item.line_total.toLocaleString()}
                   </Column>
                 </Row>
               ))}
