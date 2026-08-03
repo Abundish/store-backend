@@ -6,18 +6,29 @@ import { resend } from "../lib/resend"
 import OrderPlacedEmail from "../emails/order-placed"
 import AdminNewOrderEmail from "../emails/admin-new-order"
 
-// query.graph serializes BigNumber as plain objects { numeric, value } rather
-// than class instances, so we handle both forms here.
+// query.graph may return BigNumber as a class instance or a plain object
+// ({ numeric }, { numeric_ }, or { value }). Handle all of those forms.
 function toAmount(value: unknown): number {
     if (value == null) return 0
     if (typeof value === "number") return value
+    if (typeof value === "string") {
+        const parsed = parseFloat(value)
+        return Number.isNaN(parsed) ? 0 : parsed
+    }
     if (value instanceof BigNumber) return value.numeric
-    if (typeof value === "object" && value !== null) {
+    if (typeof value === "object") {
         const obj = value as Record<string, unknown>
         if (typeof obj.numeric === "number") return obj.numeric
+        if (typeof obj.numeric_ === "number") return obj.numeric_
+        if (obj.value != null) return toAmount(obj.value)
+        if (obj.raw != null && typeof obj.raw === "object") {
+            return toAmount((obj.raw as Record<string, unknown>).value)
+        }
+        if (obj.raw_ != null && typeof obj.raw_ === "object") {
+            return toAmount((obj.raw_ as Record<string, unknown>).value)
+        }
     }
-    const parsed = parseFloat(String(value))
-    return Number.isNaN(parsed) ? 0 : parsed
+    return 0
 }
 
 export default async function orderPlacedHandler({
@@ -26,14 +37,14 @@ export default async function orderPlacedHandler({
 }: SubscriberArgs<{ id: string }>) {
     const query = container.resolve("query")
 
+    // items.* is required — requesting items.quantity alone does not reliably
+    // load quantity from query.graph (Medusa #10403).
     const { data: orders } = await query.graph({
         entity: "order",
         fields: [
             "display_id",
             "email",
-            "items.title",
-            "items.quantity",
-            "items.unit_price",
+            "items.*",
             "shipping_address.*",
             "shipping_methods.name",
             "shipping_methods.amount",
@@ -65,10 +76,7 @@ export default async function orderPlacedHandler({
     const itemsPayload = (order.items ?? [])
         .filter((item): item is NonNullable<typeof item> => item != null)
         .map((item) => {
-            // quantity is an integer column but may still be wrapped in a BigNumber
-            // object by some query.graph serialisers — run it through toAmount +
-            // round to always get a plain whole number.
-            const qty = Math.round(toAmount(item.quantity as unknown)) || 1
+            const qty = Math.max(1, Math.round(toAmount(item.quantity as unknown)))
             return {
                 title: item.title,
                 quantity: qty,
