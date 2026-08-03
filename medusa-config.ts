@@ -55,7 +55,8 @@ module.exports = defineConfig({
             "localhost",
             ".localhost",
             "127.0.0.1",
-            "api.abundish.info"
+            "api.abundish.info",
+            "staging-api.abundish.info"
           ],
           hmr: {
             port: 5173,

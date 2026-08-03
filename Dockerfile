@@ -8,6 +8,8 @@ RUN npm install --legacy-peer-deps
 
 # Layer 2: source + build
 COPY . .
+ARG MEDUSA_BACKEND_URL
+ENV MEDUSA_BACKEND_URL=$MEDUSA_BACKEND_URL
 RUN npm run build
 
 # Layer 3: production deps for built output (cached unless package-lock changes)
