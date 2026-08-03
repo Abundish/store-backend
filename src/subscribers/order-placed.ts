@@ -71,7 +71,7 @@ export default async function orderPlacedHandler({
         }))
 
     const shippingFee = (order.shipping_methods ?? [])
-        .reduce((sum: number, sm: Record<string, unknown>) => sum + toAmount(sm.amount), 0)
+        .reduce((sum: number, sm) => sum + (sm ? toAmount(sm.amount) : 0), 0)
 
     const subtotal = itemsPayload.reduce((sum, item) => sum + item.line_total, 0)
     const orderTotal = subtotal + shippingFee
