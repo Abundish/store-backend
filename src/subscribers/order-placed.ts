@@ -54,11 +54,13 @@ export default async function orderPlacedHandler({
     ]
         .filter(Boolean)
         .join(", ")
-    const itemsPayload = (order.items ?? []).map((item) => ({
-        title: item.title,
-        quantity: item.quantity,
-        line_total: toAmount(item.total),
-    }))
+    const itemsPayload = (order.items ?? [])
+        .filter((item): item is NonNullable<typeof item> => item != null)
+        .map((item) => ({
+            title: item.title,
+            quantity: item.quantity,
+            line_total: toAmount(item.total),
+        }))
 
     const orderTotal = toAmount(order.total)
 
