@@ -22,7 +22,6 @@ module.exports = defineConfig({
         providers: [
           {
             resolve: "./src/modules/paystack-payment",
-            id: "paystack",
             options: {
               secret_key: process.env.PAYSTACK_SECRET_KEY || "",
               debug: process.env.NODE_ENV !== "production",
