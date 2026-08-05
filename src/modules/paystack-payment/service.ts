@@ -24,6 +24,8 @@ import {
   UpdatePaymentInput,
   UpdatePaymentOutput,
   WebhookActionResult,
+  BigNumberInput,
+  ProviderWebhookPayload,
 } from "@medusajs/framework/types"
 import { PaystackAPI } from "./lib/paystack"
 
@@ -40,7 +42,7 @@ export interface PluginOptions {
  * Medusa stores amounts as integers in the smallest currency unit, so no
  * conversion is needed. We keep this helper for clarity and future-proofing.
  */
-function toPaystackAmount(amount: number): number {
+function toPaystackAmount(amount: BigNumberInput): number {
   return Math.round(Number(amount))
 }
 
@@ -54,7 +56,6 @@ class PaystackPaymentProcessor extends AbstractPaymentProvider<PluginOptions> {
     cradle: Record<string, unknown>,
     options: PluginOptions
   ) {
-    // @ts-expect-error – AbstractPaymentProvider expects specific cradle type
     super(cradle, options)
 
     if (!options.secret_key) {
@@ -84,10 +85,7 @@ class PaystackPaymentProcessor extends AbstractPaymentProvider<PluginOptions> {
     this.log("initiatePayment", input)
 
     const { amount, currency_code, context } = input
-    const email =
-      (context?.customer as { email?: string })?.email ??
-      (context?.billing_address as { email?: string })?.email ??
-      "customer@abundish.com"
+    const email = context?.customer?.email ?? "customer@abundish.com"
 
     try {
       const { data, status, message } =
@@ -110,6 +108,7 @@ class PaystackPaymentProcessor extends AbstractPaymentProvider<PluginOptions> {
       }
 
       return {
+        id: data.reference,
         data: {
           paystackReference: data.reference,
           paystackAuthorizationUrl: data.authorization_url,
@@ -380,14 +379,12 @@ class PaystackPaymentProcessor extends AbstractPaymentProvider<PluginOptions> {
   // Webhook
   // ---------------------------------------------------------------------------
 
-  async getWebhookActionAndData(payload: {
-    data: { event: string; data: Record<string, unknown> }
-    rawData: string | Buffer
-    headers: Record<string, string>
-  }): Promise<WebhookActionResult> {
+  async getWebhookActionAndData(
+    payload: ProviderWebhookPayload["payload"]
+  ): Promise<WebhookActionResult> {
     this.log("getWebhookActionAndData event", payload.data.event)
 
-    const secretKey = (this.configuration as unknown as PluginOptions).secret_key
+    const secretKey = this.config.secret_key
     const hash = crypto
       .createHmac("sha512", secretKey)
       .update(
