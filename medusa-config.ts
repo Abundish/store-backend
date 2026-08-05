@@ -21,10 +21,12 @@ module.exports = defineConfig({
       options: {
         providers: [
           {
-            resolve: "medusa-payment-paystack",
+            resolve: "./src/modules/paystack-payment",
+            id: "paystack",
             options: {
               secret_key: process.env.PAYSTACK_SECRET_KEY || "",
-            } satisfies import("medusa-payment-paystack").PluginOptions,
+              debug: process.env.NODE_ENV !== "production",
+            },
           },
         ],
       },
