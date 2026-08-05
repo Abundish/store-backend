@@ -35,15 +35,13 @@ export interface PluginOptions {
 }
 
 /**
- * Converts a Medusa amount (in smallest currency unit, e.g. kobo for NGN)
- * to the unit Paystack expects.
+ * Converts a Medusa payment amount to the unit Paystack expects.
  *
- * Paystack expects amounts in kobo (NGN subunit) — e.g. 500000 for ₦5,000.
- * Medusa stores amounts as integers in the smallest currency unit, so no
- * conversion is needed. We keep this helper for clarity and future-proofing.
+ * Medusa passes amounts in major currency units (e.g. 9000 for ₦9,000).
+ * Paystack expects the smallest unit (kobo for NGN) — e.g. 900000 for ₦9,000.
  */
 function toPaystackAmount(amount: BigNumberInput): number {
-  return Math.round(Number(amount))
+  return Math.round(Number(amount) * 100)
 }
 
 class PaystackPaymentProcessor extends AbstractPaymentProvider<PluginOptions> {
@@ -84,19 +82,25 @@ class PaystackPaymentProcessor extends AbstractPaymentProvider<PluginOptions> {
   ): Promise<InitiatePaymentOutput> {
     this.log("initiatePayment", input)
 
-    const { amount, currency_code, context } = input
-    const email = context?.customer?.email ?? "customer@abundish.com"
+    const { amount, currency_code, context, data } = input
+    const sessionData = (data ?? {}) as Record<string, unknown>
+    const email =
+      (sessionData.email as string | undefined) ??
+      context?.customer?.email ??
+      "customer@abundish.com"
 
     try {
-      const { data, status, message } =
+      const { data: txData, status, message } =
         await this.paystack.transaction.initialize({
           email,
-          // Paystack expects kobo (NGN subunit). Medusa amounts are already
-          // in the smallest currency unit (kobo for NGN).
           amount: toPaystackAmount(amount),
           currency: currency_code?.toUpperCase(),
           metadata: {
-            medusa_session_id: (context as Record<string, unknown>)?.session_id,
+            medusa_session_id:
+              (sessionData.session_id as string | undefined) ??
+              ((context as Record<string, unknown> | undefined)?.session_id as
+                | string
+                | undefined),
           },
         })
 
@@ -108,11 +112,11 @@ class PaystackPaymentProcessor extends AbstractPaymentProvider<PluginOptions> {
       }
 
       return {
-        id: data.reference,
+        id: txData.reference,
         data: {
-          paystackReference: data.reference,
-          paystackAuthorizationUrl: data.authorization_url,
-          paystackAccessCode: data.access_code,
+          paystackReference: txData.reference,
+          paystackAuthorizationUrl: txData.authorization_url,
+          paystackAccessCode: txData.access_code,
         },
       }
     } catch (error) {
@@ -157,7 +161,9 @@ class PaystackPaymentProcessor extends AbstractPaymentProvider<PluginOptions> {
 
       if (data.status === "success") {
         return {
-          status: PaymentSessionStatus.AUTHORIZED,
+          // Paystack auto-captures — mark as captured so Medusa doesn't require
+          // a manual capture step in the admin.
+          status: PaymentSessionStatus.CAPTURED,
           data: {
             ...input.data,
             paystackTxId: data.id,
@@ -207,8 +213,7 @@ class PaystackPaymentProcessor extends AbstractPaymentProvider<PluginOptions> {
   }
 
   // ---------------------------------------------------------------------------
-  // Refund — the key fix: amount must be in kobo (smallest unit), consistent
-  // with how initiatePayment sends the charge to Paystack.
+  // Refund
   // ---------------------------------------------------------------------------
 
   async refundPayment(
@@ -322,7 +327,7 @@ class PaystackPaymentProcessor extends AbstractPaymentProvider<PluginOptions> {
 
       switch (txStatus) {
         case "success":
-          return { status: PaymentSessionStatus.AUTHORIZED }
+          return { status: PaymentSessionStatus.CAPTURED }
         case "abandoned":
         case "failed":
           return { status: PaymentSessionStatus.ERROR }
