@@ -1,5 +1,7 @@
 import { defineConfig } from '@medusajs/framework/utils'
 
+const rbacEnabled = process.env.MEDUSA_FF_RBAC === "true"
+
 module.exports = defineConfig({
   projectConfig: {
     databaseDriverOptions: {
@@ -14,6 +16,9 @@ module.exports = defineConfig({
       jwtSecret: process.env.JWT_SECRET || "supersecret",
       cookieSecret: process.env.COOKIE_SECRET || "supersecret",
     }
+  },
+  featureFlags: {
+    rbac: rbacEnabled,
   },
   modules: [
     {
@@ -45,6 +50,11 @@ module.exports = defineConfig({
         ],
       },
     },
+    // MEDUSA_FF_RBAC alone is not enough: defineConfig runs before feature flags
+    // are registered, so the default RBAC module stays disabled unless declared here.
+    ...(rbacEnabled
+      ? [{ resolve: "@medusajs/medusa/rbac" as const }]
+      : []),
   ],
   admin: {
     backendUrl: process.env.MEDUSA_BACKEND_URL,

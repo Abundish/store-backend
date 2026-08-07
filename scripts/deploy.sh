@@ -63,7 +63,7 @@ echo "==> Starting containers..."
 docker compose -f "$COMPOSE_FILE" up -d
 
 echo "==> Running database migrations..."
-docker compose -f "$COMPOSE_FILE" exec -T medusa sh -c "cd /server && npx medusa db:migrate"
+docker compose -f "$COMPOSE_FILE" exec -T medusa sh -c "cd /server/.medusa/server && npx medusa db:migrate"
 
 echo "==> $LABEL deployment complete ($(date -Is))"
 docker compose -f "$COMPOSE_FILE" ps
