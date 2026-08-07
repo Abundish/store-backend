@@ -50,8 +50,6 @@ module.exports = defineConfig({
         ],
       },
     },
-    // MEDUSA_FF_RBAC alone is not enough: defineConfig runs before feature flags
-    // are registered, so the default RBAC module stays disabled unless declared here.
     ...(rbacEnabled
       ? [{ resolve: "@medusajs/medusa/rbac" as const }]
       : []),
