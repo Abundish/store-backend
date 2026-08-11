@@ -46,6 +46,11 @@ module.exports = defineConfig({
           {
             resolve: "./src/modules/abundish-fulfillment",
             id: "abundish-fulfillment",
+            options: {
+              api_key: process.env.CHOWDECK_RELAY_API_KEY || "",
+              base_url: process.env.CHOWDECK_RELAY_BASE_URL || "",
+              fallback_to_distance_pricing: true,
+            },
           },
         ],
       },
