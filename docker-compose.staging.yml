@@ -1,0 +1,70 @@
+name: medusa-staging
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: medusa_staging_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: medusa-store-staging
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data_staging:/var/lib/postgresql/data
+    networks:
+      - medusa_staging_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: medusa_staging_redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6380:6379"
+    networks:
+      - medusa_staging_network
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.7
+    container_name: medusa_staging_meilisearch
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:7701:7700"
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY}
+      MEILI_ENV: development
+    volumes:
+      - meilisearch_data_staging:/meili_data
+    networks:
+      - medusa_staging_network
+
+  medusa:
+    build:
+      context: .
+      args:
+        MEDUSA_BACKEND_URL: ${MEDUSA_BACKEND_URL}
+    container_name: medusa_staging_backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "127.0.0.1:9001:9000"
+    env_file:
+      - .env
+    volumes:
+      - medusa_uploads_staging:/server/.medusa/server/static
+    networks:
+      - medusa_staging_network
+
+volumes:
+  postgres_data_staging:
+  meilisearch_data_staging:
+  medusa_uploads_staging:
+
+networks:
+  medusa_staging_network:
+    driver: bridge
