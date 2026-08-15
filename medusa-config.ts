@@ -1,5 +1,7 @@
 import { defineConfig } from '@medusajs/framework/utils'
 
+const rbacEnabled = process.env.MEDUSA_FF_RBAC === "true"
+
 module.exports = defineConfig({
   projectConfig: {
     databaseDriverOptions: {
@@ -15,16 +17,23 @@ module.exports = defineConfig({
       cookieSecret: process.env.COOKIE_SECRET || "supersecret",
     }
   },
+  featureFlags: {
+    rbac: rbacEnabled,
+  },
   modules: [
+    {
+      resolve: "./src/modules/newsletter",
+    },
     {
       resolve: "@medusajs/medusa/payment",
       options: {
         providers: [
           {
-            resolve: "medusa-payment-paystack",
+            resolve: "./src/modules/paystack-payment",
             options: {
               secret_key: process.env.PAYSTACK_SECRET_KEY || "",
-            } satisfies import("medusa-payment-paystack").PluginOptions,
+              debug: process.env.NODE_ENV !== "production",
+            },
           },
         ],
       },
@@ -40,10 +49,18 @@ module.exports = defineConfig({
           {
             resolve: "./src/modules/abundish-fulfillment",
             id: "abundish-fulfillment",
+            options: {
+              api_key: process.env.CHOWDECK_RELAY_API_KEY || "",
+              base_url: process.env.CHOWDECK_RELAY_BASE_URL || "",
+              fallback_to_distance_pricing: true,
+            },
           },
         ],
       },
     },
+    ...(rbacEnabled
+      ? [{ resolve: "@medusajs/medusa/rbac" as const }]
+      : []),
   ],
   admin: {
     backendUrl: process.env.MEDUSA_BACKEND_URL,
@@ -55,7 +72,8 @@ module.exports = defineConfig({
             "localhost",
             ".localhost",
             "127.0.0.1",
-            "api.abundish.info"
+            "api.abundish.info",
+            "staging-api.abundish.info"
           ],
           hmr: {
             port: 5173,
