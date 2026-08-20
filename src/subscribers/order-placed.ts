@@ -31,6 +31,14 @@ function toAmount(value: unknown): number {
     return 0
 }
 
+function parseEmailList(value: string | undefined): string[] {
+    if (!value) return []
+    return value
+        .split(",")
+        .map((email) => email.trim())
+        .filter(Boolean)
+}
+
 export default async function orderPlacedHandler({
     event: { data },
     container,
@@ -134,13 +142,16 @@ export default async function orderPlacedHandler({
         })
     )
 
-    await resend.emails.send({
-        from: "Abundish <orders@abundish.info>",
-        to: process.env.ADMIN_NOTIFICATION_EMAIL!,
-        subject: `🛒 New order #${order.display_id} — ₦${orderTotal.toLocaleString()}`,
-        replyTo: order.email ?? undefined,
-        html: adminHtml,
-    })
+    const adminEmails = parseEmailList(process.env.ADMIN_NOTIFICATION_EMAIL)
+    if (adminEmails.length) {
+        await resend.emails.send({
+            from: "Abundish <orders@abundish.info>",
+            to: adminEmails,
+            subject: `🛒 New order #${order.display_id} — ₦${orderTotal.toLocaleString()}`,
+            replyTo: order.email ?? undefined,
+            html: adminHtml,
+        })
+    }
 }
 
 export const config: SubscriberConfig = {
