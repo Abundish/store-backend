@@ -52,6 +52,7 @@ module.exports = defineConfig({
             options: {
               api_key: process.env.CHOWDECK_RELAY_API_KEY || "",
               base_url: process.env.CHOWDECK_RELAY_BASE_URL || "",
+              merchant_ref: process.env.CHOWDECK_MERCHANT_REF || "",
               fallback_to_distance_pricing: true,
             },
           },

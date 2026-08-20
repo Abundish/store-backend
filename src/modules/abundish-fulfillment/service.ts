@@ -36,6 +36,7 @@ type InjectedDependencies = {
 export type AbundishFulfillmentOptions = {
   api_key?: string
   base_url?: string
+  merchant_ref?: string
   /** Fall back to Google Distance Matrix tiers if Relay fails */
   fallback_to_distance_pricing?: boolean
 }
@@ -134,19 +135,23 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
     this.config = PRICING_CONFIG
 
     const apiKey = options.api_key || process.env.CHOWDECK_RELAY_API_KEY
-    this.relay = apiKey
-      ? new RelayClient({
-          apiKey,
-          baseUrl:
-            options.base_url ||
-            process.env.CHOWDECK_RELAY_BASE_URL ||
-            undefined,
-        })
-      : null
+    const merchantRef =
+      options.merchant_ref || process.env.CHOWDECK_MERCHANT_REF
+    this.relay =
+      apiKey && merchantRef
+        ? new RelayClient({
+            apiKey,
+            merchantRef,
+            baseUrl:
+              options.base_url ||
+              process.env.CHOWDECK_RELAY_BASE_URL ||
+              undefined,
+          })
+        : null
 
     if (!this.relay) {
       this.logger_.warn(
-        "[AbundishFulfillment] CHOWDECK_RELAY_API_KEY is not set — using distance-tier pricing fallback"
+        "[AbundishFulfillment] CHOWDECK_RELAY_API_KEY or CHOWDECK_MERCHANT_REF is not set — using distance-tier pricing fallback"
       )
     }
   }
@@ -308,10 +313,8 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
       return cached.quote
     }
 
-    const { lat, lng } = this.config.centralLocation
-
     const quote = await this.relay.getDeliveryFee({
-      source_address: { latitude: lat, longitude: lng },
+      source_address_string: this.config.centralLocation.address,
       destination_address_string: destination,
       estimated_order_amount: estimatedOrderAmount,
     })
