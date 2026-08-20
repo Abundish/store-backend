@@ -111,6 +111,14 @@ const PRICING_CONFIG: DistancePricingConfig = {
 
 const QUOTE_CACHE_TTL_MS = 5 * 60 * 1000
 
+/**
+ * Chowdeck quotes in kobo. Medusa (and this store) store amounts in naira —
+ * product prices, Paystack (`amount * 100`), and order emails all assume naira.
+ */
+function koboToNaira(kobo: number): number {
+  return Math.round(Number(kobo) || 0) / 100
+}
+
 class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderService {
   static identifier = "abundish-fulfillment"
 
@@ -210,7 +218,7 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
     if (!address) {
       const fallback = this.config.pricingTiers[0]?.basePrice ?? 1800
       return {
-        calculated_amount: fallback * 100,
+        calculated_amount: fallback,
         is_calculated_price_tax_inclusive: false,
       }
     }
@@ -218,9 +226,8 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
     try {
       const quote = await this.getRelayQuote(context as Record<string, unknown>)
       if (quote) {
-        // Relay amounts are already in the smallest currency unit (kobo).
         return {
-          calculated_amount: quote.total_amount,
+          calculated_amount: koboToNaira(quote.total_amount),
           is_calculated_price_tax_inclusive: false,
         }
       }
@@ -241,7 +248,7 @@ class AbundishFulfillmentProviderService extends AbstractFulfillmentProviderServ
     const priceNaira = this.priceFromDistance(distanceKm)
 
     return {
-      calculated_amount: priceNaira * 100,
+      calculated_amount: priceNaira,
       is_calculated_price_tax_inclusive: false,
     }
   }
