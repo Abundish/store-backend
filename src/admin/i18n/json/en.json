@@ -1,5 +1,8 @@
 {
   "login": {
     "title": "Welcome to Abundish"
+  },
+  "activity": {
+    "title": "Activity"
   }
 }

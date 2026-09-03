@@ -25,6 +25,12 @@ module.exports = defineConfig({
       resolve: "./src/modules/newsletter",
     },
     {
+      resolve: "./src/modules/activity-log",
+      options: {
+        retention_months: Number(process.env.ACTIVITY_LOG_RETENTION_MONTHS || 12),
+      },
+    },
+    {
       resolve: "@medusajs/medusa/payment",
       options: {
         providers: [
