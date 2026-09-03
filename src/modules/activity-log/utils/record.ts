@@ -2,11 +2,26 @@ import type { MedusaContainer } from "@medusajs/framework/types"
 import { ACTIVITY_LOG_MODULE } from "../index"
 import ActivityLogModuleService from "../service"
 import type { ActorType, CreateActivityLogInput } from "../types"
+import {
+  getCurrentActor,
+  normalizeActorType,
+} from "./actor-context"
 
 type EventLike = {
   name?: string
   data?: Record<string, unknown>
   metadata?: Record<string, unknown>
+}
+
+function pickString(
+  ...values: unknown[]
+): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) {
+      return value
+    }
+  }
+  return null
 }
 
 export function resolveActor(event?: EventLike): {
@@ -15,26 +30,26 @@ export function resolveActor(event?: EventLike): {
 } {
   const metadata = event?.metadata ?? {}
   const data = event?.data ?? {}
-  const actorId =
-    (typeof metadata.actor_id === "string" && metadata.actor_id) ||
-    (typeof metadata.user_id === "string" && metadata.user_id) ||
-    (typeof data.actor_id === "string" && data.actor_id) ||
-    (typeof data.created_by === "string" && data.created_by) ||
-    null
+  const current = getCurrentActor()
 
-  const actorTypeRaw =
-    (typeof metadata.actor_type === "string" && metadata.actor_type) ||
-    (typeof data.actor_type === "string" && data.actor_type) ||
-    null
+  const actorId = pickString(
+    metadata.actor_id,
+    metadata.user_id,
+    data.actor_id,
+    data.created_by,
+    current?.actor_id
+  )
 
-  let actor_type: ActorType = "system"
-  if (actorTypeRaw === "api_key" || actorTypeRaw === "admin_user" || actorTypeRaw === "system") {
-    actor_type = actorTypeRaw
-  } else if (actorId) {
-    actor_type = actorId.startsWith("apk_") ? "api_key" : "admin_user"
+  const actorTypeRaw = pickString(
+    metadata.actor_type,
+    data.actor_type,
+    current?.actor_type
+  )
+
+  return {
+    actor_id: actorId,
+    actor_type: normalizeActorType(actorTypeRaw, actorId),
   }
-
-  return { actor_id: actorId, actor_type }
 }
 
 export async function recordActivitySafely(
@@ -42,8 +57,16 @@ export async function recordActivitySafely(
   input: CreateActivityLogInput
 ): Promise<void> {
   try {
+    const current = getCurrentActor()
     const service = container.resolve<ActivityLogModuleService>(ACTIVITY_LOG_MODULE)
-    await service.record(input)
+    await service.record({
+      ...input,
+      actor_id: input.actor_id ?? current?.actor_id ?? null,
+      actor_type:
+        input.actor_type ??
+        current?.actor_type ??
+        (input.actor_id ? "admin_user" : "system"),
+    })
   } catch (error) {
     const logger = container.resolve("logger") as {
       error: (message: string, error?: unknown) => void

@@ -2,6 +2,11 @@ import { buildActivityLogFilters, getRetentionCutoff } from "../utils/filters"
 import { activityLogToCsvRow, csvHeader } from "../utils/csv"
 import { extractEntityIds } from "../utils/catalog"
 import { resolveActor } from "../utils/record"
+import {
+  normalizeActorType,
+  runWithActor,
+  stampEventsWithActor,
+} from "../utils/actor-context"
 
 describe("buildActivityLogFilters", () => {
   it("maps exact filters and date bounds", () => {
@@ -69,6 +74,49 @@ describe("resolveActor", () => {
       actor_id: "apk_123",
       actor_type: "api_key",
     })
+    expect(
+      resolveActor({ metadata: { actor_id: "user_1", actor_type: "user" } })
+    ).toEqual({ actor_id: "user_1", actor_type: "admin_user" })
+  })
+
+  it("falls back to the request actor context when the event has none", () => {
+    runWithActor({ actor_id: "user_sam", actor_type: "admin_user" }, () => {
+      expect(resolveActor({ data: { id: "variant_1" } })).toEqual({
+        actor_id: "user_sam",
+        actor_type: "admin_user",
+      })
+    })
+  })
+})
+
+describe("normalizeActorType", () => {
+  it("maps Medusa auth actor types onto activity-log types", () => {
+    expect(normalizeActorType("user", "user_1")).toEqual("admin_user")
+    expect(normalizeActorType("api-key", "apk_1")).toEqual("api_key")
+    expect(normalizeActorType(undefined, "user_1")).toEqual("admin_user")
+  })
+})
+
+describe("stampEventsWithActor", () => {
+  it("copies the current actor onto event metadata without overwriting", () => {
+    const stamped = stampEventsWithActor(
+      { name: "product-variant.updated", data: { id: "variant_1" }, metadata: {} },
+      { actor_id: "user_sam", actor_type: "admin_user" }
+    )
+    expect(stamped.metadata).toEqual({
+      actor_id: "user_sam",
+      actor_type: "admin_user",
+    })
+
+    const preserved = stampEventsWithActor(
+      {
+        name: "product-variant.updated",
+        data: { id: "variant_1" },
+        metadata: { actor_id: "user_other", actor_type: "admin_user" },
+      },
+      { actor_id: "user_sam", actor_type: "admin_user" }
+    )
+    expect(preserved.metadata?.actor_id).toEqual("user_other")
   })
 })
 

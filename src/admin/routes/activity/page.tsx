@@ -24,6 +24,7 @@ type ActivityLog = {
   actor_id: string | null
   actor_type: string
   actor_email?: string | null
+  actor_name?: string | null
   before_state: Record<string, unknown> | null
   after_state: Record<string, unknown> | null
   metadata: Record<string, unknown> | null
@@ -50,6 +51,12 @@ const ENTITY_TYPES = [
 const PAGE_SIZE = 20
 
 function actorLabel(row: ActivityLog): string {
+  if (row.actor_name && row.actor_email && row.actor_name !== row.actor_email) {
+    return `${row.actor_name} (${row.actor_email})`
+  }
+  if (row.actor_name) {
+    return row.actor_name
+  }
   if (row.actor_email) {
     return row.actor_email
   }

@@ -1,8 +1,31 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
 
+type UserRow = {
+  id: string
+  email?: string | null
+  first_name?: string | null
+  last_name?: string | null
+}
+
+export type ActorDisplay = {
+  actor_email: string | null
+  actor_name: string | null
+}
+
+function displayName(user?: UserRow): string | null {
+  if (!user) {
+    return null
+  }
+  const name = [user.first_name, user.last_name].filter(Boolean).join(" ").trim()
+  return name || user.email || null
+}
+
 export async function attachActorEmails<
   T extends { actor_id?: string | null },
->(container: MedusaContainer, rows: T[]): Promise<(T & { actor_email: string | null })[]> {
+>(
+  container: MedusaContainer,
+  rows: T[]
+): Promise<(T & ActorDisplay)[]> {
   const ids = [
     ...new Set(
       rows
@@ -12,20 +35,30 @@ export async function attachActorEmails<
   ]
 
   if (!ids.length) {
-    return rows.map((row) => ({ ...row, actor_email: null }))
+    return rows.map((row) => ({ ...row, actor_email: null, actor_name: null }))
   }
 
   try {
     const userService = container.resolve("user") as {
-      listUsers: (selector: { id: string[] }, config?: { select?: string[] }) => Promise<{ id: string; email?: string }[]>
+      listUsers: (
+        selector: { id: string[] },
+        config?: { select?: string[] }
+      ) => Promise<UserRow[]>
     }
-    const users = await userService.listUsers({ id: ids }, { select: ["id", "email"] })
-    const emails = new Map(users.map((user) => [user.id, user.email ?? null]))
-    return rows.map((row) => ({
-      ...row,
-      actor_email: row.actor_id ? emails.get(row.actor_id) ?? null : null,
-    }))
+    const users = await userService.listUsers(
+      { id: ids },
+      { select: ["id", "email", "first_name", "last_name"] }
+    )
+    const byId = new Map(users.map((user) => [user.id, user]))
+    return rows.map((row) => {
+      const user = row.actor_id ? byId.get(row.actor_id) : undefined
+      return {
+        ...row,
+        actor_email: user?.email ?? null,
+        actor_name: displayName(user),
+      }
+    })
   } catch {
-    return rows.map((row) => ({ ...row, actor_email: null }))
+    return rows.map((row) => ({ ...row, actor_email: null, actor_name: null }))
   }
 }
