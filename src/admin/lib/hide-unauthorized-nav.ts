@@ -16,55 +16,39 @@ function ensureStyles() {
   document.head.appendChild(style)
 }
 
-function hideEmptyContainers(root: ParentNode) {
-  const candidates = root.querySelectorAll("li, [data-state]")
-  candidates.forEach((node) => {
-    const links = node.querySelectorAll("a[href]")
-    if (!links.length) {
-      return
-    }
+function hideAncestorsIfEmpty(link: Element) {
+  let current: Element | null = link.parentElement
+  for (
+    let depth = 0;
+    current && depth < 6 && current.tagName !== "ASIDE";
+    depth += 1
+  ) {
+    const links = current.querySelectorAll("a[href]")
     const hasVisible = Array.from(links).some(
-      (link) => link.getAttribute(HIDDEN_ATTR) !== "true"
+      (anchor) => anchor.getAttribute(HIDDEN_ATTR) !== "true"
     )
-    if (hasVisible) {
-      node.removeAttribute(HIDDEN_ATTR)
-    } else {
-      node.setAttribute(HIDDEN_ATTR, "true")
+    if (links.length && !hasVisible) {
+      current.setAttribute(HIDDEN_ATTR, "true")
+    } else if (current.getAttribute(HIDDEN_ATTR) === "true" && hasVisible) {
+      current.removeAttribute(HIDDEN_ATTR)
     }
-  })
-
-  root.querySelectorAll("aside nav > div > div, aside nav > div").forEach((node) => {
-    const links = node.querySelectorAll(":scope a[href]")
-    if (!links.length) {
-      return
-    }
-    const hasVisible = Array.from(links).some(
-      (link) => link.getAttribute(HIDDEN_ATTR) !== "true"
-    )
-    if (!hasVisible) {
-      node.setAttribute(HIDDEN_ATTR, "true")
-    } else if (node.getAttribute(HIDDEN_ATTR) === "true") {
-      node.removeAttribute(HIDDEN_ATTR)
-    }
-  })
+    current = current.parentElement
+  }
 }
 
 export function hideUnauthorizedNav(granted: Iterable<string>) {
   ensureStyles()
-  const asides = document.querySelectorAll("aside")
-  asides.forEach((aside) => {
-    aside.querySelectorAll("a[href]").forEach((link) => {
-      const href = link.getAttribute("href")
-      if (!href) {
-        return
-      }
-      const needed = requiredPermissionForPath(href)
-      if (needed && !hasPermission(granted, needed)) {
-        link.setAttribute(HIDDEN_ATTR, "true")
-      } else {
-        link.removeAttribute(HIDDEN_ATTR)
-      }
-    })
-    hideEmptyContainers(aside)
+  document.querySelectorAll("aside a[href]").forEach((link) => {
+    const href = link.getAttribute("href")
+    if (!href) {
+      return
+    }
+    const needed = requiredPermissionForPath(href)
+    if (needed && !hasPermission(granted, needed)) {
+      link.setAttribute(HIDDEN_ATTR, "true")
+      hideAncestorsIfEmpty(link)
+    } else {
+      link.removeAttribute(HIDDEN_ATTR)
+    }
   })
 }

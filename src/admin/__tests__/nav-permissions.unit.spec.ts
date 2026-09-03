@@ -2,7 +2,7 @@ import {
   hasPermission,
   requiredPermissionForPath,
   toDashboardPath,
-} from "../../admin/lib/nav-permissions"
+} from "../lib/nav-permissions"
 
 describe("nav permission mapping", () => {
   it("maps dashboard paths to read permissions", () => {

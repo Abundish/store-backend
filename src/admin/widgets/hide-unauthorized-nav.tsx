@@ -45,7 +45,7 @@ const HideUnauthorizedNavWidget = () => {
     }
   }, [])
 
-  return null
+  return <span aria-hidden className="hidden" />
 }
 
 export const config = defineWidgetConfig({
