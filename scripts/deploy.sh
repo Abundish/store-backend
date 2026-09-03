@@ -14,7 +14,7 @@ case "$ENV" in
   staging)
     DEPLOY_DIR="${STAGING_DIR:-/home/deploy/new-store-staging}"
     COMPOSE_FILE="docker-compose.staging.yml"
-    BRANCH="${STAGING_BRANCH:-main}"
+    BRANCH="${STAGING_BRANCH:-dev}"
     LABEL="Staging"
     ;;
   prod)
