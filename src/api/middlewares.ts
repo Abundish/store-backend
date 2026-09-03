@@ -5,12 +5,18 @@ import {
   type MedusaRequest,
   type MedusaResponse,
 } from "@medusajs/framework/http"
-import { Modules } from "@medusajs/framework/utils"
+import { Modules, PolicyOperation } from "@medusajs/framework/utils"
 import {
   actorFromAuthContext,
   ensureEventBusStampsActor,
   runWithActor,
 } from "../modules/activity-log/utils/actor-context"
+import { ACTIVITY_LOG_RESOURCE } from "../policies/activity-log"
+
+const activityLogReadPolicy = {
+  resource: ACTIVITY_LOG_RESOURCE,
+  operation: PolicyOperation.read,
+}
 
 export default defineMiddlewares({
   routes: [
@@ -42,6 +48,11 @@ export default defineMiddlewares({
           runWithActor(actor, () => next())
         },
       ],
+    },
+    {
+      matcher: "/admin/activity-log*",
+      method: ["GET"],
+      policies: activityLogReadPolicy,
     },
   ],
 })

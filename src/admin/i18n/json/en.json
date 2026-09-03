@@ -4,5 +4,10 @@
   },
   "activity": {
     "title": "Activity"
+  },
+  "permissions": {
+    "resources": {
+      "activity_log": "Activity log"
+    }
   }
 }

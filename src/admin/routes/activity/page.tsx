@@ -387,4 +387,8 @@ export const config = defineRouteConfig({
   icon: DocumentText,
 })
 
+export const handle = {
+  permissions: ["activity_log:read"],
+}
+
 export default ActivityPage
