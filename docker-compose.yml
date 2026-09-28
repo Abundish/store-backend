@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -19,7 +19,7 @@ services:
     container_name: medusa_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks:
       - medusa_network
 
@@ -28,7 +28,7 @@ services:
     container_name: medusa_meilisearch
     restart: unless-stopped
     ports:
-      - "7700:7700"
+      - "127.0.0.1:7700:7700"
     environment:
       MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY}
       MEILI_ENV: production
@@ -38,14 +38,17 @@ services:
       - medusa_network
 
   medusa:
-    build: .
+    build:
+      context: .
+      args:
+        MEDUSA_BACKEND_URL: ${MEDUSA_BACKEND_URL}
     container_name: medusa_backend
     restart: unless-stopped
     depends_on:
       - postgres
       - redis
     ports:
-      - "9000:9000"
+      - "127.0.0.1:9000:9000"
     env_file:
       - .env
     volumes:
